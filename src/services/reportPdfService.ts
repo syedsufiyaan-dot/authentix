@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+﻿import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DiagnosticReport } from '../types/diagnostic';
 
@@ -60,7 +60,7 @@ export function generateReportPdf(report: DiagnosticReport): void {
   doc.setFontSize(8);
   doc.setTextColor(132, 150, 168);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Tests: ${report.stats.passed} Passed � ${report.stats.warning} Warnings - ${report.stats.failed} Failed`, 120, 71);
+  doc.text(`Tests: ${report.stats.passed} Passed • ${report.stats.warning} Warnings - ${report.stats.failed} Failed`, 120, 71);
 
   // Category Score Breakdown
   const categoryRows = Object.values(report.categoryScores).map((category) => [
@@ -203,31 +203,44 @@ export function generateReportPdf(report: DiagnosticReport): void {
       'The device has significant diagnostic concerns. Repair or professional inspection is recommended before purchase.';
     doc.setTextColor(255, 92, 108);
   }
-
-  if (nextY > 235) {
+  // Make sure the purchase verdict is clearly visible
+  if (nextY > 215) {
     doc.addPage();
     nextY = 20;
   }
 
+  // Verdict box
+  doc.setFillColor(245, 249, 250);
+  doc.setDrawColor(54, 225, 204);
+  doc.roundedRect(14, nextY, 182, 34, 3, 3, 'FD');
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('AUTHENTIX FINAL VERDICT', 14, nextY);
+  doc.setFontSize(9);
+  doc.setTextColor(54, 110, 105);
+  doc.text('AUTHENTIX FINAL PURCHASE VERDICT', 20, nextY + 8);
 
-  nextY += 6;
+  doc.setFontSize(13);
 
-  doc.setFontSize(10);
-  doc.text(verdictTitle, 14, nextY);
+  if (report.overallScore >= 90) {
+    doc.setTextColor(30, 170, 95);
+  } else if (report.overallScore >= 75) {
+    doc.setTextColor(32, 140, 220);
+  } else if (report.overallScore >= 60) {
+    doc.setTextColor(220, 145, 35);
+  } else {
+    doc.setTextColor(220, 70, 80);
+  }
 
-  nextY += 6;
+  doc.text(verdictTitle, 20, nextY + 17);
 
   doc.setTextColor(70, 70, 70);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
 
-  const verdictLines = doc.splitTextToSize(verdictDescription, 180);
-  doc.text(verdictLines, 14, nextY);
+  const verdictLines = doc.splitTextToSize(verdictDescription, 165);
+  doc.text(verdictLines, 20, nextY + 24);
 
-  nextY += verdictLines.length * 4 + 6;
+  nextY += 42;
   // Warnings & Recommendations
   if (report.warnings.length > 0) {
     doc.setFontSize(9);
@@ -278,6 +291,7 @@ export function generateReportPdf(report: DiagnosticReport): void {
   // Save the PDF
   doc.save(`AuthentiX_Report_${report.id}.pdf`);
 }
+
 
 
 
