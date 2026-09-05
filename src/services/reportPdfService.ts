@@ -1,8 +1,9 @@
 ﻿import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 import { DiagnosticReport } from '../types/diagnostic';
 
-export function generateReportPdf(report: DiagnosticReport): void {
+export async function generateReportPdf(report: DiagnosticReport): Promise<void> {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -288,9 +289,43 @@ export function generateReportPdf(report: DiagnosticReport): void {
     287
   );
 
+  // Public verification QR code
+  const verificationUrl =
+    `https://authentix-mobile.vercel.app/verify/${encodeURIComponent(report.id)}`;
+
+  const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
+    width: 500,
+    margin: 1,
+    errorCorrectionLevel: 'M',
+  });
+
+  // Add a new verification section near the bottom
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(54, 225, 204);
+  doc.text('VERIFY THIS AUTHENTIX REPORT', 145, 248);
+
+  doc.addImage(
+    qrDataUrl,
+    'PNG',
+    158,
+    252,
+    28,
+    28
+  );
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(90, 100, 110);
+  doc.text(
+    'Scan to verify report authenticity',
+    145,
+    284
+  );
   // Save the PDF
   doc.save(`AuthentiX_Report_${report.id}.pdf`);
 }
+
 
 
 

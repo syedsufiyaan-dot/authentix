@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DiagnosticProvider } from './context/DiagnosticContext';
@@ -14,6 +14,7 @@ import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetOtpPage } from './pages/ResetOtpPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { VerifyReportPage } from './pages/VerifyReportPage';
 
 import { AppLayout } from './components/layout/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
@@ -37,7 +38,7 @@ function AppContent() {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-otp" element={<ResetOtpPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />`r`n        <Route path="/verify/:reportId" element={<VerifyReportPage />} />
 
         {/* Protected App Routes */}
         <Route
@@ -77,3 +78,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

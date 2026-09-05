@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+ï»¿import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Download, 
@@ -90,9 +90,9 @@ export const ReportPage: React.FC = () => {
 
 
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     try {
-      generateReportPdf(report);
+      await generateReportPdf(report);
       toast('AuthentiX PDF report downloaded successfully.', 'success');
     } catch {
       toast('Failed to export PDF report.', 'error');
@@ -375,7 +375,7 @@ export const ReportPage: React.FC = () => {
             <ul className="space-y-1.5 text-xs text-text-muted">
               {report.warnings.map((w, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className="text-status-warning">•</span>
+                  <span className="text-status-warning">â€¢</span>
                   <span>{w}</span>
                 </li>
               ))}
@@ -391,7 +391,7 @@ export const ReportPage: React.FC = () => {
           <ul className="space-y-1.5 text-xs text-text-muted">
             {report.recommendations.map((r, idx) => (
               <li key={idx} className="flex items-start gap-2">
-                <span className="text-accent-teal">•</span>
+                <span className="text-accent-teal">â€¢</span>
                 <span>{r}</span>
               </li>
             ))}
@@ -405,6 +405,7 @@ export const ReportPage: React.FC = () => {
     </div>
   );
 };
+
 
 
 
