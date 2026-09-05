@@ -19,6 +19,22 @@ function getTestScore(test: TestItemResult): number {
 }
 
 export const SupabaseDiagnosticService = {
+  async getReports(): Promise<DiagnosticReport[]> {
+    const { data, error } = await supabase
+      .from('diagnostic_sessions')
+      .select('report_data')
+      .eq('status', 'completed')
+      .order('completed_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? [])
+      .map((row) => row.report_data as DiagnosticReport)
+      .filter(Boolean);
+  },
+
   async saveReport(report: DiagnosticReport): Promise<void> {
     const {
       data: { user },
@@ -81,3 +97,4 @@ export const SupabaseDiagnosticService = {
     }
   },
 };
+

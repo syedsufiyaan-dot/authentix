@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { DeviceInfo, DiagnosticReport, TestItemResult, PhysicalInspectionData } from '../types/diagnostic';
 import { DiagnosticService } from '../services/diagnosticService';
+import { SupabaseDiagnosticService } from '../services/supabaseDiagnosticService';
 import { detectCurrentEnvironment } from '../utils/deviceDetector';
 import { StorageService } from '../services/storageService';
 
@@ -10,7 +11,7 @@ interface DiagnosticContextType {
   detectDevice: () => Promise<DeviceInfo>;
   saveCompletedReport: (device: DeviceInfo, tests: Record<string, TestItemResult>, physical: PhysicalInspectionData) => DiagnosticReport;
   deleteReport: (id: string) => void;
-  refreshReports: () => void;
+  refreshReports: () => Promise<void>;
 }
 
 const DiagnosticContext = createContext<DiagnosticContextType | undefined>(undefined);
@@ -19,12 +20,18 @@ export const DiagnosticProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [reports, setReports] = useState<DiagnosticReport[]>([]);
   const [currentDevice, setCurrentDevice] = useState<DeviceInfo | null>(null);
 
-  const refreshReports = () => {
-    setReports(DiagnosticService.getReports());
+  const refreshReports = async () => {
+    try {
+      const cloudReports = await SupabaseDiagnosticService.getReports();
+      setReports(cloudReports);
+    } catch (error) {
+      console.error('Failed to load reports from Supabase:', error);
+      setReports(DiagnosticService.getReports());
+    }
   };
 
   useEffect(() => {
-    refreshReports();
+    void refreshReports();
     detectCurrentEnvironment().then((dev) => setCurrentDevice(dev)).catch(() => {});
   }, []);
 
@@ -40,13 +47,13 @@ export const DiagnosticProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     physical: PhysicalInspectionData
   ): DiagnosticReport => {
     const report = DiagnosticService.createReport(device, tests, physical);
-    refreshReports();
+    void refreshReports();
     return report;
   };
 
   const deleteReport = (id: string) => {
     DiagnosticService.deleteReport(id);
-    refreshReports();
+    void refreshReports();
   };
 
   return (
@@ -70,3 +77,4 @@ export const useDiagnostic = (): DiagnosticContextType => {
   if (!context) throw new Error('useDiagnostic must be used within a DiagnosticProvider');
   return context;
 };
+
