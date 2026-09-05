@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { DeviceInfo, DiagnosticReport, TestItemResult, PhysicalInspectionData } from '../types/diagnostic';
 import { DiagnosticService } from '../services/diagnosticService';
 import { SupabaseDiagnosticService } from '../services/supabaseDiagnosticService';
@@ -83,5 +83,6 @@ export const useDiagnostic = (): DiagnosticContextType => {
   if (!context) throw new Error('useDiagnostic must be used within a DiagnosticProvider');
   return context;
 };
+
 
 
