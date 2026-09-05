@@ -21,7 +21,7 @@ export const DashboardPage: React.FC = () => {
   const totalScans = reports.length;
   const avgScore = totalScans > 0 
     ? Math.round(reports.reduce((acc, r) => acc + r.overallScore, 0) / totalScans) 
-    : 85;
+    : 0;
   const healthyCount = reports.filter((r) => r.overallScore >= 75).length;
   const warningCount = reports.filter((r) => r.overallScore < 75).length;
 
@@ -75,7 +75,7 @@ export const DashboardPage: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-status-success" />
           </div>
           <div className="text-3xl font-extrabold text-status-success font-mono">{healthyCount}</div>
-          <div className="text-[11px] text-text-muted font-mono">≥ 75 Trust Score</div>
+          <div className="text-[11px] text-text-muted font-mono">&gt;= 75 Trust Score</div>
         </div>
 
         <div className="p-5 rounded-2xl glass-panel space-y-1">
@@ -150,7 +150,7 @@ export const DashboardPage: React.FC = () => {
             to="/app/history"
             className="text-xs font-mono text-accent-teal hover:underline flex items-center gap-1"
           >
-            View All Scans →
+            View All Scans ?
           </Link>
         </div>
 
@@ -214,3 +214,5 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
+
+

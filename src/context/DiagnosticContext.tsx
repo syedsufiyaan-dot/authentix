@@ -53,7 +53,13 @@ export const DiagnosticProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const deleteReport = (id: string) => {
     DiagnosticService.deleteReport(id);
-    void refreshReports();
+
+    void SupabaseDiagnosticService.deleteReport(id)
+      .then(() => refreshReports())
+      .catch((error) => {
+        console.error('Failed to delete diagnostic report from Supabase:', error);
+        void refreshReports();
+      });
   };
 
   return (
@@ -77,4 +83,5 @@ export const useDiagnostic = (): DiagnosticContextType => {
   if (!context) throw new Error('useDiagnostic must be used within a DiagnosticProvider');
   return context;
 };
+
 

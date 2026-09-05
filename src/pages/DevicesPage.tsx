@@ -104,7 +104,7 @@ export const DevicesPage: React.FC = () => {
                   to="/app/diagnostic"
                   className="text-xs font-mono text-accent-teal hover:underline flex items-center gap-1"
                 >
-                  Scan Again →
+                  Scan Again ?
                 </Link>
               </div>
             </div>
@@ -114,3 +114,4 @@ export const DevicesPage: React.FC = () => {
     </div>
   );
 };
+

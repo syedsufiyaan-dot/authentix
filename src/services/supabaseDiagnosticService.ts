@@ -35,6 +35,17 @@ export const SupabaseDiagnosticService = {
       .filter(Boolean);
   },
 
+  async deleteReport(reportCode: string): Promise<void> {
+    const { error } = await supabase
+      .from('diagnostic_sessions')
+      .delete()
+      .eq('report_code', reportCode);
+
+    if (error) {
+      throw error;
+    }
+  },
+
   async saveReport(report: DiagnosticReport): Promise<void> {
     const {
       data: { user },
@@ -97,4 +108,5 @@ export const SupabaseDiagnosticService = {
     }
   },
 };
+
 
