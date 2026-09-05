@@ -54,6 +54,42 @@ export const ReportPage: React.FC = () => {
 
   const { label, bgClass, borderClass } = getGradeFromScore(report.overallScore);
 
+  const getFinalVerdict = (score: number) => {
+    if (score >= 90) {
+      return {
+        title: 'Recommended to Buy',
+        description: 'The device shows strong overall diagnostic health with no major concerns detected.',
+        className: 'border-status-success/40 bg-status-success/10 text-status-success',
+      };
+    }
+
+    if (score >= 75) {
+      return {
+        title: 'Good Device - Proceed with Normal Checks',
+        description: 'The device is generally healthy, but review any warnings before completing the purchase.',
+        className: 'border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan',
+      };
+    }
+
+    if (score >= 60) {
+      return {
+        title: 'Inspection Recommended',
+        description: 'Some diagnostic areas need attention. Review failed tests, warnings, and physical condition carefully.',
+        className: 'border-status-warning/40 bg-status-warning/10 text-status-warning',
+      };
+    }
+
+    return {
+      title: 'Not Recommended Without Repair',
+      description: 'The device has significant diagnostic concerns. Repair or professional inspection is recommended before purchase.',
+      className: 'border-status-critical/40 bg-status-critical/10 text-status-critical',
+    };
+  };
+
+  const finalVerdict = getFinalVerdict(report.overallScore);
+
+
+
   const handleDownloadPdf = () => {
     try {
       generateReportPdf(report);
@@ -177,6 +213,71 @@ export const ReportPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Category Score Breakdown */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-white tracking-wide">
+              Trust Score Breakdown
+            </h3>
+            <p className="text-xs text-text-muted font-mono mt-1">
+              Weighted category contribution to the final AuthentiX score.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {Object.values(report.categoryScores).map((category) => {
+            const categoryGrade = getGradeFromScore(category.score);
+
+            return (
+              <div
+                key={category.category}
+                className="p-4 rounded-2xl glass-panel border border-bg-border space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] font-mono text-text-dim uppercase">
+                      {category.weight}% WEIGHT
+                    </span>
+                    <h4 className="text-sm font-bold text-white mt-1">
+                      {category.name}
+                    </h4>
+                  </div>
+
+                  <span
+                    className={`px-2 py-0.5 rounded-md border text-[9px] font-mono ${categoryGrade.bgClass} ${categoryGrade.borderClass}`}
+                  >
+                    {categoryGrade.label}
+                  </span>
+                </div>
+
+                <div className="flex items-end justify-between">
+                  <div>
+                    <span className="text-2xl font-extrabold text-accent-teal font-mono">
+                      {category.score}
+                    </span>
+                    <span className="text-[10px] text-text-muted font-mono">
+                      {' '} / 100
+                    </span>
+                  </div>
+
+                  <span className="text-[10px] text-text-dim font-mono">
+                    {category.testsCount} TESTS
+                  </span>
+                </div>
+
+                <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-accent-teal transition-all"
+                    style={{ width: `${Math.max(0, Math.min(100, category.score))}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       {/* Complete Hardware Tests Results */}
       <div className="space-y-4">
         <h3 className="text-lg font-bold text-white tracking-wide">Hardware Diagnostic Checklist</h3>
@@ -274,7 +375,7 @@ export const ReportPage: React.FC = () => {
             <ul className="space-y-1.5 text-xs text-text-muted">
               {report.warnings.map((w, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className="text-status-warning">â€¢</span>
+                  <span className="text-status-warning">•</span>
                   <span>{w}</span>
                 </li>
               ))}
@@ -290,7 +391,7 @@ export const ReportPage: React.FC = () => {
           <ul className="space-y-1.5 text-xs text-text-muted">
             {report.recommendations.map((r, idx) => (
               <li key={idx} className="flex items-start gap-2">
-                <span className="text-accent-teal">â€¢</span>
+                <span className="text-accent-teal">•</span>
                 <span>{r}</span>
               </li>
             ))}
@@ -304,3 +405,8 @@ export const ReportPage: React.FC = () => {
     </div>
   );
 };
+
+
+
+
+

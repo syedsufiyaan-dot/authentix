@@ -60,27 +60,70 @@ export function generateReportPdf(report: DiagnosticReport): void {
   doc.setFontSize(8);
   doc.setTextColor(132, 150, 168);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Tests: ${report.stats.passed} Passed • ${report.stats.warning} Warnings • ${report.stats.failed} Failed`, 120, 71);
+  doc.text(`Tests: ${report.stats.passed} Passed � ${report.stats.warning} Warnings - ${report.stats.failed} Failed`, 120, 71);
+
+  // Category Score Breakdown
+  const categoryRows = Object.values(report.categoryScores).map((category) => [
+    category.name,
+    `${category.score} / 100`,
+    `${category.weight}%`,
+    `${category.testsCount}`,
+  ]);
+
+  autoTable(doc, {
+    startY: 84,
+    head: [['CATEGORY', 'SCORE', 'WEIGHT', 'TESTS']],
+    body: categoryRows,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [15, 23, 38],
+      textColor: [54, 225, 204],
+      fontStyle: 'bold',
+      fontSize: 8,
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [20, 30, 45],
+      fontSize: 8,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 248, 250],
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  const categoryTableY =
+    (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY || 120;
 
   // Device Info Table
   const deviceInfoRows = [
     ['Device Name', report.device.deviceName, 'Operating System', `${report.device.os} ${report.device.osVersion}`],
     ['Manufacturer', report.device.manufacturer, 'Browser Engine', report.device.browser],
     ['Screen Resolution', `${report.device.screenRes} (@${report.device.pixelRatio}x)`, 'CPU Logical Cores', `${report.device.cpuCores} Threads`],
-    ['Storage Quota', report.device.storageQuotaGb ? `${report.device.storageQuotaGb} GB` : 'Flash Quota', 'Network State', report.device.connectionType || 'Nominal']
+    ['Storage Quota', report.device.storageQuotaGb ? `${report.device.storageQuotaGb} GB` : 'Not available', 'Network State', report.device.connectionType || 'Nominal'],
   ];
 
   autoTable(doc, {
-    startY: 84,
+    startY: categoryTableY + 8,
     head: [['DEVICE ATTRIBUTE', 'SPECIFICATION', 'HARDWARE ATTRIBUTE', 'SPECIFICATION']],
     body: deviceInfoRows,
     theme: 'grid',
-    headStyles: { fillColor: [15, 23, 38], textColor: [54, 225, 204], fontStyle: 'bold', fontSize: 8 },
-    bodyStyles: { fillColor: [255, 255, 255], textColor: [20, 30, 45], fontSize: 8 },
-    alternateRowStyles: { fillColor: [245, 248, 250] },
-    margin: { left: 14, right: 14 }
+    headStyles: {
+      fillColor: [15, 23, 38],
+      textColor: [32, 184, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [20, 30, 45],
+      fontSize: 8,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 248, 250],
+    },
+    margin: { left: 14, right: 14 },
   });
-
   // Individual Hardware Tests Checklist Table
   const testRows = Object.values(report.tests).map(t => [
     t.title,
@@ -135,6 +178,56 @@ export function generateReportPdf(report: DiagnosticReport): void {
     nextY = 20;
   }
 
+  // Final Verdict
+  let verdictTitle = '';
+  let verdictDescription = '';
+
+  if (report.overallScore >= 90) {
+    verdictTitle = 'RECOMMENDED TO BUY';
+    verdictDescription =
+      'The device shows strong overall diagnostic health with no major concerns detected.';
+    doc.setTextColor(57, 229, 140);
+  } else if (report.overallScore >= 75) {
+    verdictTitle = 'GOOD DEVICE - PROCEED WITH NORMAL CHECKS';
+    verdictDescription =
+      'The device is generally healthy, but review any warnings before completing the purchase.';
+    doc.setTextColor(32, 184, 255);
+  } else if (report.overallScore >= 60) {
+    verdictTitle = 'INSPECTION RECOMMENDED';
+    verdictDescription =
+      'Some diagnostic areas need attention. Review failed tests, warnings, and physical condition carefully.';
+    doc.setTextColor(255, 184, 77);
+  } else {
+    verdictTitle = 'NOT RECOMMENDED WITHOUT REPAIR';
+    verdictDescription =
+      'The device has significant diagnostic concerns. Repair or professional inspection is recommended before purchase.';
+    doc.setTextColor(255, 92, 108);
+  }
+
+  if (nextY > 235) {
+    doc.addPage();
+    nextY = 20;
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('AUTHENTIX FINAL VERDICT', 14, nextY);
+
+  nextY += 6;
+
+  doc.setFontSize(10);
+  doc.text(verdictTitle, 14, nextY);
+
+  nextY += 6;
+
+  doc.setTextColor(70, 70, 70);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+
+  const verdictLines = doc.splitTextToSize(verdictDescription, 180);
+  doc.text(verdictLines, 14, nextY);
+
+  nextY += verdictLines.length * 4 + 6;
   // Warnings & Recommendations
   if (report.warnings.length > 0) {
     doc.setFontSize(9);
@@ -146,7 +239,7 @@ export function generateReportPdf(report: DiagnosticReport): void {
     doc.setFontSize(8);
     doc.setTextColor(50, 50, 50);
     report.warnings.forEach(w => {
-      doc.text(`• ${w}`, 18, nextY);
+      doc.text(`- ${w}`, 18, nextY);
       nextY += 4.5;
     });
     nextY += 3;
@@ -161,7 +254,7 @@ export function generateReportPdf(report: DiagnosticReport): void {
   doc.setFontSize(8);
   doc.setTextColor(50, 50, 50);
   report.recommendations.forEach(r => {
-    doc.text(`• ${r}`, 18, nextY);
+    doc.text(`- ${r}`, 18, nextY);
     nextY += 4.5;
   });
 
@@ -185,3 +278,7 @@ export function generateReportPdf(report: DiagnosticReport): void {
   // Save the PDF
   doc.save(`AuthentiX_Report_${report.id}.pdf`);
 }
+
+
+
+
