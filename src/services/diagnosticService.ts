@@ -1,5 +1,6 @@
 import { DeviceInfo, DiagnosticReport, TestItemResult, PhysicalInspectionData } from '../types/diagnostic';
 import { StorageService } from './storageService';
+import { SupabaseDiagnosticService } from './supabaseDiagnosticService';
 import { calculateTrustScoreFromTests, getGradeFromScore } from '../utils/trustScore';
 
 export const DiagnosticService = {
@@ -125,7 +126,13 @@ export const DiagnosticService = {
     };
 
     StorageService.saveReport(report);
+
+    void SupabaseDiagnosticService.saveReport(report).catch((error) => {
+      console.error('Failed to save diagnostic report to Supabase:', error);
+    });
+
     StorageService.clearActiveInspection();
     return report;
   }
 };
+
