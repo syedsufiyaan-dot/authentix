@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Trash2 } from 'lucide-react';
 import { useDiagnostic } from '../context/DiagnosticContext';
@@ -13,6 +13,7 @@ export const HistoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filtered = reports.filter((r) => {
     const matchQuery =
@@ -116,8 +117,8 @@ export const HistoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-[11px] text-text-muted">
-                        <span className="text-status-success">{r.stats.passed}P</span> •{' '}
-                        <span className="text-status-warning">{r.stats.warning}W</span> •{' '}
+                        <span className="text-status-success">{r.stats.passed}P</span> â€¢{' '}
+                        <span className="text-status-warning">{r.stats.warning}W</span> â€¢{' '}
                         <span className="text-status-critical">{r.stats.failed}F</span>
                       </td>
                       <td className="py-3.5 px-4 text-right">
@@ -164,7 +165,8 @@ export const HistoryPage: React.FC = () => {
             </button>
             <button
               onClick={confirmDelete}
-              className="px-4 py-2 rounded-xl bg-status-critical text-white font-bold hover:bg-status-critical/90"
+              disabled={isDeleting}
+              className="px-4 py-2 rounded-xl bg-status-critical text-white font-bold hover:bg-status-critical/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Delete Permanently
             </button>
@@ -174,3 +176,6 @@ export const HistoryPage: React.FC = () => {
     </div>
   );
 };
+
+
+
