@@ -1,20 +1,23 @@
-﻿import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   DeviceInfo,
   DiagnosticReport,
   TestItemResult,
-  PhysicalInspectionData
+  PhysicalInspectionData,
+  PowerMetrics,
 } from '../types/diagnostic';
 
 import { DiagnosticService } from '../services/diagnosticService';
 import { SupabaseDiagnosticService } from '../services/supabaseDiagnosticService';
 import { detectCurrentEnvironment } from '../utils/deviceDetector';
 import { StorageService } from '../services/storageService';
+import { getPowerMetrics } from '../services/powerService';
 import { useAuth } from './AuthContext';
 
 interface DiagnosticContextType {
   reports: DiagnosticReport[];
   currentDevice: DeviceInfo | null;
+  powerMetrics: PowerMetrics | null;
 
   detectDevice: () => Promise<DeviceInfo>;
 
@@ -39,6 +42,7 @@ export const DiagnosticProvider: React.FC<{
   const [reports, setReports] = useState<DiagnosticReport[]>([]);
   const [currentDevice, setCurrentDevice] =
     useState<DeviceInfo | null>(null);
+  const [powerMetrics, setPowerMetrics] = useState<PowerMetrics | null>(null);
 
   const refreshReports = async () => {
     if (!user) {
@@ -80,6 +84,29 @@ export const DiagnosticProvider: React.FC<{
       .catch(() => {});
   }, []);
 
+  // Keep the latest Raspberry Pi INA219 sample available for the report.
+  // If the Pi is offline, normal browser diagnostics continue unaffected.
+  useEffect(() => {
+    let active = true;
+
+    const refreshPower = async () => {
+      try {
+        const metrics = await getPowerMetrics();
+        if (active) setPowerMetrics(metrics);
+      } catch {
+        // Hardware is optional. Preserve the last valid sample if one exists.
+      }
+    };
+
+    void refreshPower();
+    const intervalId = window.setInterval(refreshPower, 2000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   const detectDevice = async (): Promise<DeviceInfo> => {
     const dev = await detectCurrentEnvironment();
 
@@ -96,7 +123,8 @@ export const DiagnosticProvider: React.FC<{
     const report = DiagnosticService.createReport(
       device,
       tests,
-      physical
+      physical,
+      powerMetrics || undefined
     );
 
     // Add report to React state immediately for the current user.
@@ -167,6 +195,7 @@ export const DiagnosticProvider: React.FC<{
       value={{
         reports,
         currentDevice,
+        powerMetrics,
         detectDevice,
         saveCompletedReport,
         deleteReport,
