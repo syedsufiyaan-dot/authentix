@@ -76,7 +76,7 @@ export const AuthService = {
   ): Promise<{ success: boolean; message?: string }> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
       options: {
@@ -87,7 +87,28 @@ export const AuthService = {
     });
 
     if (error) {
+      const errorMessage = error.message.toLowerCase();
+
+      if (
+        errorMessage.includes('already registered') ||
+        errorMessage.includes('already exists') ||
+        errorMessage.includes('user already registered')
+      ) {
+        throw new Error('This Email is Already Registered');
+      }
+
       throw new Error(error.message);
+    }
+
+    // Supabase may intentionally return a successful-looking response for an
+    // email that already exists. In that case the returned user has no new
+    // identity, so stop the signup flow before navigating to OTP verification.
+    if (
+      data.user &&
+      Array.isArray(data.user.identities) &&
+      data.user.identities.length === 0
+    ) {
+      throw new Error('This Email is Already Registered');
     }
 
     return {
