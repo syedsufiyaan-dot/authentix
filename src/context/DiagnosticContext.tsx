@@ -10,6 +10,7 @@ import { DiagnosticService } from '../services/diagnosticService';
 import { SupabaseDiagnosticService } from '../services/supabaseDiagnosticService';
 import { detectCurrentEnvironment } from '../utils/deviceDetector';
 import { StorageService } from '../services/storageService';
+import { useAuth } from './AuthContext';
 
 interface DiagnosticContextType {
   reports: DiagnosticReport[];
@@ -34,11 +35,17 @@ const DiagnosticContext =
 export const DiagnosticProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
+  const { user } = useAuth();
   const [reports, setReports] = useState<DiagnosticReport[]>([]);
   const [currentDevice, setCurrentDevice] =
     useState<DeviceInfo | null>(null);
 
   const refreshReports = async () => {
+    if (!user) {
+      setReports([]);
+      return;
+    }
+
     try {
       const cloudReports =
         await SupabaseDiagnosticService.getReports();
@@ -50,13 +57,24 @@ export const DiagnosticProvider: React.FC<{
         error
       );
 
-      setReports(DiagnosticService.getReports());
+      // Do not fall back to the old shared local report store.
+      // That store was browser-wide and could expose another user's history.
+      setReports([]);
     }
   };
 
+  // Refresh report history whenever the signed-in account changes.
   useEffect(() => {
-    void refreshReports();
+    if (!user) {
+      setReports([]);
+      return;
+    }
 
+    void refreshReports();
+  }, [user?.id]);
+
+  // Device/environment detection is independent of the signed-in account.
+  useEffect(() => {
     detectCurrentEnvironment()
       .then((dev) => setCurrentDevice(dev))
       .catch(() => {});
@@ -81,9 +99,7 @@ export const DiagnosticProvider: React.FC<{
       physical
     );
 
-    // IMPORTANT:
-    // Add report to React state immediately.
-    // Do NOT refresh from Supabase here.
+    // Add report to React state immediately for the current user.
     setReports((prev) => [
       report,
       ...prev.filter(
@@ -91,7 +107,7 @@ export const DiagnosticProvider: React.FC<{
       ),
     ]);
 
-    // Save to Supabase in background.
+    // Save to Supabase in background. saveReport stores the current auth user_id.
     void SupabaseDiagnosticService
       .saveReport(report)
       .catch((error) => {
@@ -117,7 +133,7 @@ export const DiagnosticProvider: React.FC<{
     DiagnosticService.deleteReport(id);
 
     try {
-      // Wait for cloud deletion.
+      // Cloud deletion is also scoped to the authenticated user.
       await SupabaseDiagnosticService.deleteReport(id);
     } catch (error) {
       console.error(
