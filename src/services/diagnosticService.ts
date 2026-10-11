@@ -1,7 +1,14 @@
-﻿import { DeviceInfo, DiagnosticReport, TestItemResult, PhysicalInspectionData } from '../types/diagnostic';
+import {
+  DeviceInfo,
+  DiagnosticReport,
+  TestItemResult,
+  PhysicalInspectionData,
+  PowerMetrics,
+} from '../types/diagnostic';
 import { StorageService } from './storageService';
 import { calculateTrustScoreFromTests, getGradeFromScore } from '../utils/trustScore';
 import { getLastCapturedLocation } from './locationRuntime';
+import { analyzeChargingHealth } from './chargingHealthService';
 
 export const DiagnosticService = {
   getReports(): DiagnosticReport[] {
@@ -19,7 +26,8 @@ export const DiagnosticService = {
   createReport(
     device: DeviceInfo,
     tests: Record<string, TestItemResult>,
-    physical: PhysicalInspectionData
+    physical: PhysicalInspectionData,
+    powerMetrics?: PowerMetrics
   ): DiagnosticReport {
     // Preserve the real GPS fix captured during the interactive location test.
     // Exact coordinates remain in structured report data; the public QR view
@@ -113,6 +121,27 @@ export const DiagnosticService = {
       }
     });
 
+    const chargingHealth = powerMetrics
+      ? analyzeChargingHealth(powerMetrics)
+      : undefined;
+
+    if (chargingHealth?.status === 'problem') {
+      warnings.push(
+        `Charging hardware measurement: ${chargingHealth.message}`
+      );
+      recommendations.push(
+        'Inspect the charging cable, connector, charging port, and power source before purchase.'
+      );
+    } else if (chargingHealth?.status === 'check') {
+      recommendations.push(
+        `Charging check: ${chargingHealth.message}`
+      );
+    } else if (chargingHealth?.status === 'good') {
+      recommendations.push(
+        `Charging hardware measurement passed at ${chargingHealth.voltage.toFixed(2)} V, ${chargingHealth.current.toFixed(2)} A, ${chargingHealth.power.toFixed(2)} W.`
+      );
+    }
+
     // Score calculations
     const { overallScore, categoryScores } = calculateTrustScoreFromTests(reportTests, physicalScore);
     const { grade, label } = getGradeFromScore(overallScore);
@@ -124,7 +153,7 @@ export const DiagnosticService = {
       recommendations.push('Review identified warnings before completing purchase or refurbishment.');
     }
 
-    if (unsupportedCount > 0) {
+    if (unsupportedCount > 0 && !powerMetrics) {
       recommendations.push('Certain hardware diagnostics require external native/Raspberry Pi measurement.');
     }
 
@@ -150,9 +179,11 @@ export const DiagnosticService = {
         skipped: skippedCount,
       },
       physicalInspection: physical,
+      powerMetrics,
+      chargingHealth,
       warnings,
       recommendations,
-      inspectorNotes: `AuthentiX Interactive Device Inspection completed with ${passedCount} passed tests, ${warningCount} warnings, and ${failedCount} failures.`,
+      inspectorNotes: `AuthentiX Interactive Device Inspection completed with ${passedCount} passed tests, ${warningCount} warnings, and ${failedCount} failures.${chargingHealth ? ` Charging hardware status: ${chargingHealth.label}.` : ''}`,
       isDemo: device.isSimulated,
     };
 
@@ -162,5 +193,3 @@ export const DiagnosticService = {
     return report;
   }
 };
-
-
