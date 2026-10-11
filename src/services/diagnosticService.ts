@@ -1,6 +1,7 @@
 ﻿import { DeviceInfo, DiagnosticReport, TestItemResult, PhysicalInspectionData } from '../types/diagnostic';
 import { StorageService } from './storageService';
 import { calculateTrustScoreFromTests, getGradeFromScore } from '../utils/trustScore';
+import { getLastCapturedLocation } from './locationRuntime';
 
 export const DiagnosticService = {
   getReports(): DiagnosticReport[] {
@@ -20,6 +21,37 @@ export const DiagnosticService = {
     tests: Record<string, TestItemResult>,
     physical: PhysicalInspectionData
   ): DiagnosticReport {
+    // Preserve the real GPS fix captured during the interactive location test.
+    // Exact coordinates remain in structured report data; the public QR view
+    // intentionally presents the test result/accuracy without exposing precise
+    // coordinates by default.
+    let reportTests: Record<string, TestItemResult> = { ...tests };
+    const capturedLocation = getLastCapturedLocation();
+
+    if (
+      capturedLocation &&
+      reportTests.gps &&
+      reportTests.gps.status !== 'NOT_TESTED' &&
+      reportTests.gps.status !== 'UNSUPPORTED'
+    ) {
+      reportTests = {
+        ...reportTests,
+        gps: {
+          ...reportTests.gps,
+          details: `GPS Lock Established • Accuracy: ±${Math.round(
+            capturedLocation.accuracy
+          )} meters • Current location captured during inspection`,
+          data: {
+            ...(reportTests.gps.data || {}),
+            latitude: capturedLocation.latitude,
+            longitude: capturedLocation.longitude,
+            accuracy: capturedLocation.accuracy,
+            capturedAt: capturedLocation.capturedAt,
+          },
+        },
+      };
+    }
+
     // Physical score computation
     let physicalScore = 100;
     const warnings: string[] = [];
@@ -59,7 +91,7 @@ export const DiagnosticService = {
     physicalScore = Math.max(0, physicalScore);
 
     // Compute stats
-    const allTests = Object.values(tests);
+    const allTests = Object.values(reportTests);
     let passedCount = 0;
     let warningCount = 0;
     let failedCount = 0;
@@ -82,7 +114,7 @@ export const DiagnosticService = {
     });
 
     // Score calculations
-    const { overallScore, categoryScores } = calculateTrustScoreFromTests(tests, physicalScore);
+    const { overallScore, categoryScores } = calculateTrustScoreFromTests(reportTests, physicalScore);
     const { grade, label } = getGradeFromScore(overallScore);
 
     if (warnings.length === 0) {
@@ -106,7 +138,7 @@ export const DiagnosticService = {
       overallScore,
       grade,
       gradeLabel: `${label} Condition`,
-      tests,
+      tests: reportTests,
       categoryScores,
       stats: {
         total: allTests.length,
