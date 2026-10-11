@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./.github/assets/authentix-pulse.svg" alt="AuthentiX animated diagnostic scanner" width="100%" />
+<img src="./.github/assets/authentix-hero-v2.svg" alt="AuthentiX animated diagnostic scanner" width="100%" />
 
 <br/>
 
