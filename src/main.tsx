@@ -4,9 +4,17 @@ import App from './App';
 import './index.css';
 import { installLocationRuntime } from './services/locationRuntime';
 import { installPiAutoStatusRuntime } from './services/piAutoStatusRuntime';
+import { isPiAutoMode } from './services/piAutoDiagnosticService';
 
 installLocationRuntime();
-installPiAutoStatusRuntime();
+
+// Remember Pi station mode from ?auto=1, but do not start hardware checks on
+// the login/dashboard pages. Auto diagnostics begin only after the authenticated
+// user opens the diagnostic route.
+const piAutoMode = isPiAutoMode();
+if (piAutoMode && window.location.pathname.includes('/app/diagnostic')) {
+  installPiAutoStatusRuntime();
+}
 
 // Camera preview compatibility bridge.
 // The diagnostic page mounts its <video> element only after getUserMedia()
