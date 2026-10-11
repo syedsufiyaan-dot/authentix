@@ -67,11 +67,10 @@
   </g>
 
   <g font-family="Arial, Helvetica, sans-serif">
-    <text x="250" y="142" fill="#F4F8FC" font-size="52" font-weight="800" letter-spacing="8">AUTHENTI</text>
-    <text x="436" y="142" fill="#36E1CC" font-size="52" font-weight="800" opacity="0">X</text>
-    <text x="950" y="142" fill="#F4F8FC" font-size="52" font-weight="800" text-anchor="end" letter-spacing="8">X</text>
-    <text x="250" y="177" fill="#6E8B99" font-size="13" font-weight="600" letter-spacing="4">MOBILE HEALTH • RELIABILITY • TRUST</text>
-    <text x="950" y="177" fill="#6E8B99" font-size="13" font-weight="600" text-anchor="end" letter-spacing="3">INSPECT • SCORE • VERIFY</text>
+    <text x="235" y="142" fill="#F4F8FC" font-size="44" font-weight="800" letter-spacing="5">AUTHENTI<tspan fill="#36E1CC">X</tspan></text>
+    <text x="950" y="142" fill="#F4F8FC" font-size="26" font-weight="700" text-anchor="end" letter-spacing="3">DIAGNOSE • VERIFY • TRUST</text>
+    <text x="235" y="177" fill="#6E8B99" font-size="13" font-weight="600" letter-spacing="3.2">MOBILE HEALTH • RELIABILITY ANALYZER</text>
+    <text x="950" y="177" fill="#6E8B99" font-size="13" font-weight="600" text-anchor="end" letter-spacing="3">INSPECT • SCORE • REPORT</text>
   </g>
 
   <g font-family="monospace" font-size="11">
