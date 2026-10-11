@@ -2,6 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { installLocationRuntime } from './services/locationRuntime';
+
+installLocationRuntime();
 
 // Camera preview compatibility bridge.
 // The diagnostic page mounts its <video> element only after getUserMedia()
@@ -99,7 +102,6 @@ if (typeof document !== 'undefined') {
     dataUrl: string,
     mirror: boolean
   ) => {
-    // Run after React has processed its own Capture Test Photo handler.
     window.setTimeout(() => {
       const step = findCameraStep(button);
       const video = step?.querySelector('video') as HTMLVideoElement | null;
