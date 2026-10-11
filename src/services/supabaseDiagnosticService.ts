@@ -18,11 +18,31 @@ function getTestScore(test: TestItemResult): number {
   }
 }
 
+async function getAuthenticatedUserId(): Promise<string | null> {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) {
+    throw error;
+  }
+
+  return user?.id ?? null;
+}
+
 export const SupabaseDiagnosticService = {
   async getReports(): Promise<DiagnosticReport[]> {
+    const userId = await getAuthenticatedUserId();
+
+    if (!userId) {
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('diagnostic_sessions')
       .select('report_data')
+      .eq('user_id', userId)
       .eq('status', 'completed')
       .order('completed_at', { ascending: false });
 
@@ -36,9 +56,16 @@ export const SupabaseDiagnosticService = {
   },
 
   async deleteReport(reportCode: string): Promise<void> {
+    const userId = await getAuthenticatedUserId();
+
+    if (!userId) {
+      throw new Error('User must be signed in to delete a diagnostic report.');
+    }
+
     const { error } = await supabase
       .from('diagnostic_sessions')
       .delete()
+      .eq('user_id', userId)
       .eq('report_code', reportCode);
 
     if (error) {
@@ -108,5 +135,3 @@ export const SupabaseDiagnosticService = {
     }
   },
 };
-
-
