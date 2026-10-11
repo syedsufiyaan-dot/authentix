@@ -8,8 +8,6 @@ export interface CapturedGpsLocation {
 export const GPS_STORAGE_KEY = 'authentix_last_gps';
 
 function renderLocationCard(location: CapturedGpsLocation): void {
-  // The GPS diagnostic step is rendered dynamically. Find that active test
-  // container and place a live location card inside it after a successful fix.
   const heading = Array.from(document.querySelectorAll('h2')).find((element) =>
     /GPS|Location/i.test(element.textContent || '')
   );
@@ -85,7 +83,7 @@ export function installLocationRuntime(): void {
   const geolocation = navigator.geolocation;
   const originalGetCurrentPosition = geolocation.getCurrentPosition.bind(geolocation);
 
-  geolocation.getCurrentPosition = (
+  const wrappedGetCurrentPosition = (
     success: PositionCallback,
     error?: PositionErrorCallback | null,
     options?: PositionOptions
@@ -100,8 +98,14 @@ export function installLocationRuntime(): void {
     );
   };
 
-  // Repaint the current location card if React rerenders the GPS test after
-  // the browser position callback updates the diagnostic state.
+  // Some Android/Chrome builds expose geolocation methods as non-writable.
+  // Never let this optional compatibility hook prevent React from mounting.
+  try {
+    geolocation.getCurrentPosition = wrappedGetCurrentPosition;
+  } catch (error) {
+    console.warn('AuthentiX GPS compatibility hook unavailable:', error);
+  }
+
   window.addEventListener('authentix:gps-location', (event) => {
     const customEvent = event as CustomEvent<CapturedGpsLocation>;
     requestAnimationFrame(() => renderLocationCard(customEvent.detail));
