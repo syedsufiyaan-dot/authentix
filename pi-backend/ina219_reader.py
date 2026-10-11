@@ -22,7 +22,10 @@ def read_power_metrics():
     bus_voltage_v = float(sensor.bus_voltage)
     shunt_voltage_mv = float(sensor.shunt_voltage)
     current_ma = float(sensor.current)
-    power_mw = float(sensor.power)
+
+    # Calculate power directly from the measured bus voltage and current.
+    # This matches the real charging values observed on the AuthentiX prototype.
+    power_mw = bus_voltage_v * current_ma
 
     return {
         'bus_voltage_v': round(bus_voltage_v, 3),
