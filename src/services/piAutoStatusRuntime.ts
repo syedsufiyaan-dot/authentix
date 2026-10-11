@@ -3,7 +3,55 @@ import { getPiLiveDiagnostic, isPiAutoMode, type PiLiveDiagnostic } from './piAu
 const PANEL_ID = 'authentix-pi-auto-status';
 const EVENT_NAME = 'authentix:pi-live-diagnostic';
 const ACTIVE_INSPECTION_KEY = 'authentix_active_inspection';
-const AUTO_RELOAD_KEY = 'authentix_auto_results_reloaded';
+
+const STEP_IDS = [
+  'device_info',
+  'display',
+  'touch',
+  'front_camera',
+  'rear_camera',
+  'mic',
+  'speaker',
+  'vibration',
+  'storage',
+  'network',
+  'bluetooth',
+  'gps',
+  'motion',
+  'battery',
+  'hardware',
+  'physical',
+] as const;
+
+const STEP_TITLES: Record<(typeof STEP_IDS)[number], string> = {
+  device_info: 'Device Information',
+  display: 'Display Test',
+  touch: 'Touch Screen Test',
+  front_camera: 'Front Camera Test',
+  rear_camera: 'Rear Camera Test',
+  mic: 'Microphone Test',
+  speaker: 'Speaker / Audio Test',
+  vibration: 'Vibration Test',
+  storage: 'Storage Capability Test',
+  network: 'Internet / Network Test',
+  bluetooth: 'Bluetooth Capability Test',
+  gps: 'GPS / Location Test',
+  motion: 'Motion & Orientation Sensor Test',
+  battery: 'Battery / Charging Test',
+  hardware: 'Hardware Capability Test',
+  physical: 'Physical Condition Inspection',
+};
+
+const MANUAL_STEPS = new Set<(typeof STEP_IDS)[number]>([
+  'display',
+  'touch',
+  'front_camera',
+  'rear_camera',
+  'mic',
+  'speaker',
+  'vibration',
+  'physical',
+]);
 
 function formatNumber(value: number | undefined, digits = 1): string {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—';
@@ -35,12 +83,59 @@ function ensurePanel(): HTMLDivElement {
   return panel;
 }
 
-type AutoStatus = 'PASSED' | 'WARNING' | 'FAILED';
+type AutoStatus = 'PASSED' | 'WARNING' | 'FAILED' | 'UNSUPPORTED';
 
 interface AutoResult {
   status: AutoStatus;
   details: string;
   data?: Record<string, unknown>;
+}
+
+interface ActiveInspection {
+  step?: number;
+  tests?: Record<string, Record<string, unknown>>;
+  physical?: unknown;
+}
+
+function readInspection(): ActiveInspection | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_INSPECTION_KEY);
+    return raw ? (JSON.parse(raw) as ActiveInspection) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeInspection(inspection: ActiveInspection): void {
+  localStorage.setItem(ACTIVE_INSPECTION_KEY, JSON.stringify(inspection));
+}
+
+function isCompleteStatus(status: unknown): boolean {
+  return typeof status === 'string' && !['NOT_TESTED', 'IN_PROGRESS'].includes(status);
+}
+
+function writeResult(id: string, result: AutoResult): boolean {
+  const inspection = readInspection();
+  if (!inspection?.tests?.[id]) return false;
+
+  const existing = inspection.tests[id];
+  inspection.tests[id] = {
+    ...existing,
+    status: result.status,
+    details: result.details,
+    data: result.data,
+    testedAt: new Date().toISOString(),
+  };
+  writeInspection(inspection);
+  return true;
+}
+
+function moveToStep(step: number): void {
+  const inspection = readInspection();
+  if (!inspection) return;
+  inspection.step = Math.max(0, Math.min(16, step));
+  writeInspection(inspection);
+  window.setTimeout(() => window.location.reload(), 180);
 }
 
 function classifyDevice(data: PiLiveDiagnostic): AutoResult {
@@ -155,67 +250,170 @@ function classifyNetwork(): AutoResult {
     : { status: 'WARNING', details: 'Browser reports that network connectivity is offline.', data: { online: false } };
 }
 
-function saveAutoResults(data: PiLiveDiagnostic): boolean {
+async function classifyStorage(): Promise<AutoResult> {
+  if (!navigator.storage?.estimate) {
+    return { status: 'UNSUPPORTED', details: 'Browser StorageManager estimate API is unavailable.' };
+  }
+
   try {
-    const raw = localStorage.getItem(ACTIVE_INSPECTION_KEY);
-    if (!raw) return false;
+    const estimate = await navigator.storage.estimate();
+    const quota = estimate.quota || 0;
+    const usage = estimate.usage || 0;
+    if (quota <= 0) {
+      return { status: 'WARNING', details: 'Storage API responded but did not expose a usable quota.' };
+    }
 
-    const inspection = JSON.parse(raw) as {
-      step?: number;
-      tests?: Record<string, Record<string, unknown>>;
-      physical?: unknown;
+    return {
+      status: 'PASSED',
+      details: `Browser storage capability verified • Quota ${(quota / 1073741824).toFixed(2)} GB • Used ${(usage / 1073741824).toFixed(2)} GB.`,
+      data: { quotaBytes: quota, usageBytes: usage },
+    };
+  } catch (error) {
+    return {
+      status: 'WARNING',
+      details: `Storage capability check could not complete: ${error instanceof Error ? error.message : 'unknown error'}`,
+    };
+  }
+}
+
+function classifyBluetooth(): AutoResult {
+  if ('bluetooth' in navigator) {
+    return {
+      status: 'WARNING',
+      details: 'Web Bluetooth capability is exposed. Browser security requires a user gesture for real adapter/device discovery, so hardware discovery is not auto-passed.',
+      data: { webBluetoothApi: true },
+    };
+  }
+
+  return {
+    status: 'UNSUPPORTED',
+    details: 'Web Bluetooth API is not exposed by this browser.',
+    data: { webBluetoothApi: false },
+  };
+}
+
+async function classifyGps(): Promise<AutoResult> {
+  if (!navigator.geolocation) {
+    return { status: 'UNSUPPORTED', details: 'Geolocation API is unavailable in this browser.' };
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const accuracy = Math.round(position.coords.accuracy);
+        resolve({
+          status: accuracy <= 50 ? 'PASSED' : 'WARNING',
+          details: `GPS/location fix acquired automatically • Accuracy ±${accuracy} meters.`,
+          data: {
+            accuracy,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          },
+        });
+      },
+      (error) => {
+        resolve({
+          status: 'WARNING',
+          details: `Automatic GPS/location check could not obtain a fix: ${error.message}`,
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+}
+
+async function classifyMotion(): Promise<AutoResult> {
+  if (!('DeviceOrientationEvent' in window)) {
+    return { status: 'UNSUPPORTED', details: 'Device orientation API is not available.' };
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: AutoResult) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('deviceorientation', onOrientation);
+      resolve(result);
     };
 
-    if (!inspection.tests) return false;
-
-    const autoResults: Record<string, AutoResult> = {
-      device_info: classifyDevice(data),
-      battery: classifyBattery(data),
-      network: classifyNetwork(),
-    };
-
-    let changed = false;
-    const now = new Date().toISOString();
-
-    for (const [id, result] of Object.entries(autoResults)) {
-      const existing = inspection.tests[id];
-      if (!existing) continue;
-
-      if (existing.status !== result.status || existing.details !== result.details) {
-        inspection.tests[id] = {
-          ...existing,
-          status: result.status,
-          details: result.details,
-          data: result.data,
-          testedAt: now,
-        };
-        changed = true;
+    const onOrientation = (event: DeviceOrientationEvent) => {
+      if (event.alpha !== null || event.beta !== null || event.gamma !== null) {
+        finish({
+          status: 'PASSED',
+          details: `Motion/orientation telemetry detected • α ${Math.round(event.alpha || 0)}° • β ${Math.round(event.beta || 0)}° • γ ${Math.round(event.gamma || 0)}°`,
+          data: { alpha: event.alpha, beta: event.beta, gamma: event.gamma },
+        });
       }
-    }
+    };
 
-    if (changed) {
-      localStorage.setItem(ACTIVE_INSPECTION_KEY, JSON.stringify(inspection));
-    }
+    window.addEventListener('deviceorientation', onOrientation);
+    window.setTimeout(() => {
+      finish({
+        status: 'WARNING',
+        details: 'No orientation event was received during the automatic sampling window. The browser may require sensor permission or physical movement.',
+      });
+    }, 4500);
+  });
+}
 
-    return changed;
-  } catch {
-    return false;
+function classifyHardware(): AutoResult {
+  const cores = navigator.hardwareConcurrency || 0;
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+
+  if (cores > 0 && gl) {
+    return {
+      status: 'PASSED',
+      details: `Hardware capability check completed • ${cores} logical CPU threads • WebGL graphics context available.`,
+      data: { logicalThreads: cores, webgl: true },
+    };
+  }
+
+  return {
+    status: 'WARNING',
+    details: `Hardware capability is partially restricted by the browser • CPU threads ${cores || 'unavailable'} • WebGL ${gl ? 'available' : 'unavailable'}.`,
+    data: { logicalThreads: cores, webgl: Boolean(gl) },
+  };
+}
+
+async function resultForAutoStep(id: (typeof STEP_IDS)[number], data: PiLiveDiagnostic): Promise<AutoResult | null> {
+  switch (id) {
+    case 'device_info':
+      return classifyDevice(data);
+    case 'storage':
+      return classifyStorage();
+    case 'network':
+      return classifyNetwork();
+    case 'bluetooth':
+      return classifyBluetooth();
+    case 'gps':
+      return classifyGps();
+    case 'motion':
+      return classifyMotion();
+    case 'battery':
+      return classifyBattery(data);
+    case 'hardware':
+      return classifyHardware();
+    default:
+      return null;
   }
 }
 
 function statusLabel(result: AutoResult): string {
   if (result.status === 'PASSED') return 'PASS';
   if (result.status === 'FAILED') return 'FAIL';
+  if (result.status === 'UNSUPPORTED') return 'UNSUPPORTED';
   return 'CHECK';
 }
 
 function statusColor(result: AutoResult): string {
   if (result.status === 'PASSED') return '#2dd4bf';
   if (result.status === 'FAILED') return '#f87171';
+  if (result.status === 'UNSUPPORTED') return '#94a3b8';
   return '#f59e0b';
 }
 
-function renderDiagnostic(data: PiLiveDiagnostic): void {
+function renderDiagnostic(data: PiLiveDiagnostic, flowMessage?: string): void {
   const panel = ensurePanel();
   const device = data.device;
   const battery = device?.battery;
@@ -239,12 +437,13 @@ function renderDiagnostic(data: PiLiveDiagnostic): void {
     : `Charging sensor: ${power?.error ? 'unavailable' : 'waiting for INA219'}`;
 
   panel.innerHTML = [
-    '<strong style="color:#2dd4bf">AUTHENTIX AUTO MODE • LIVE</strong>',
+    '<strong style="color:#2dd4bf">AUTHENTIX AUTO MODE • 16-STEP FLOW</strong>',
     `<div style="margin-top:4px">${deviceLine}</div>`,
     `<div>${batteryLine}</div>`,
     `<div>${powerLine}</div>`,
     `<div style="margin-top:7px"><span style="color:${statusColor(deviceResult)}">DEVICE ${statusLabel(deviceResult)}</span> • <span style="color:${statusColor(batteryResult)}">CHARGING ${statusLabel(batteryResult)}</span> • <span style="color:${statusColor(networkResult)}">NETWORK ${statusLabel(networkResult)}</span></div>`,
-    '<div style="margin-top:4px;color:#94a3b8;font-size:11px">Automatic results are saved into the diagnostic test cards. Display, touch, camera quality, audio quality and physical-condition checks still require user interaction.</div>',
+    flowMessage ? `<div style="margin-top:7px;color:#e2e8f0">${flowMessage}</div>` : '',
+    '<div style="margin-top:4px;color:#94a3b8;font-size:11px">Automatic checks advance themselves. Visual/physical-quality checks pause for your confirmation, then Auto Mode continues to the next test.</div>',
   ].join('');
 }
 
@@ -257,27 +456,64 @@ function renderError(message: string): void {
   ].join('');
 }
 
+function currentFlowMessage(): string | undefined {
+  const inspection = readInspection();
+  if (!inspection) return 'Preparing diagnostic session…';
+  const step = typeof inspection.step === 'number' ? inspection.step : 0;
+  if (step >= STEP_IDS.length) return 'All 16 checks visited • Final Review & Report is ready.';
+  const id = STEP_IDS[step];
+  return `Step ${step + 1}/16 • ${STEP_TITLES[id]}${MANUAL_STEPS.has(id) ? ' • waiting for your confirmation' : ' • automatic check running'}`;
+}
+
 export function installPiAutoStatusRuntime(): void {
   if (typeof window === 'undefined' || typeof document === 'undefined' || !isPiAutoMode()) return;
 
   let stopped = false;
+  let flowBusy = false;
+
+  const runFlow = async (data: PiLiveDiagnostic) => {
+    if (flowBusy || !window.location.pathname.includes('/app/diagnostic')) return;
+
+    const inspection = readInspection();
+    if (!inspection?.tests) return;
+
+    const step = typeof inspection.step === 'number' ? inspection.step : 0;
+    if (step >= STEP_IDS.length) return;
+
+    const id = STEP_IDS[step];
+    const existingStatus = inspection.tests[id]?.status;
+
+    if (MANUAL_STEPS.has(id)) {
+      if (isCompleteStatus(existingStatus)) {
+        moveToStep(step + 1);
+      }
+      return;
+    }
+
+    if (isCompleteStatus(existingStatus)) {
+      moveToStep(step + 1);
+      return;
+    }
+
+    flowBusy = true;
+    try {
+      const result = await resultForAutoStep(id, data);
+      if (result && writeResult(id, result)) {
+        moveToStep(step + 1);
+      }
+    } finally {
+      flowBusy = false;
+    }
+  };
 
   const poll = async () => {
     if (stopped) return;
 
     try {
       const data = await getPiLiveDiagnostic();
-      renderDiagnostic(data);
-      const changed = saveAutoResults(data);
+      renderDiagnostic(data, currentFlowMessage());
       window.dispatchEvent(new CustomEvent<PiLiveDiagnostic>(EVENT_NAME, { detail: data }));
-
-      // The diagnostic page restores its test state from localStorage. Reload once
-      // after the first automatic result set so the visible cards immediately show
-      // PASSED/WARNING/FAILED without replacing any of the existing React workflow.
-      if (changed && sessionStorage.getItem(AUTO_RELOAD_KEY) !== '1') {
-        sessionStorage.setItem(AUTO_RELOAD_KEY, '1');
-        window.setTimeout(() => window.location.reload(), 250);
-      }
+      await runFlow(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown Raspberry Pi connection error';
       renderError(message);
