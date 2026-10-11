@@ -420,8 +420,6 @@ This approach keeps the project useful without overstating what a web applicatio
 |---|---|
 | **Syed Sufiyaan Ahmed S** | System design, integration, Android / diagnostic workflow |
 | **Syed Javeed Ahmed N** | Software modules, Trust Score, report workflow |
-| **Muhammad Safik M** | Hardware diagnostics, component testing, result verification |
-| **Selvakumar R** | Storage / connectivity testing, analysis, documentation support |
 
 </div>
 
