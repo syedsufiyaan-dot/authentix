@@ -1,4 +1,4 @@
-﻿import jsPDF from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { DiagnosticReport } from '../types/diagnostic';
@@ -125,6 +125,7 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
     },
     margin: { left: 14, right: 14 },
   });
+
   // Individual Hardware Tests Checklist Table
   const testRows = Object.values(report.tests).map(t => [
     t.title,
@@ -179,11 +180,66 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
     nextY = 20;
   }
 
+  // Raspberry Pi / INA219 charging measurement
+  if (report.powerMetrics && report.chargingHealth) {
+    if (nextY > 225) {
+      doc.addPage();
+      nextY = 20;
+    }
+
+    const charging = report.chargingHealth;
+    const metrics = report.powerMetrics;
+
+    doc.setFillColor(245, 249, 250);
+    if (charging.status === 'good') {
+      doc.setDrawColor(57, 229, 140);
+    } else if (charging.status === 'check') {
+      doc.setDrawColor(255, 184, 77);
+    } else {
+      doc.setDrawColor(255, 92, 108);
+    }
+    doc.roundedRect(14, nextY, 182, 36, 3, 3, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(54, 110, 105);
+    doc.text('RASPBERRY PI CHARGING HEALTH', 20, nextY + 8);
+
+    doc.setFontSize(12);
+    if (charging.status === 'good') {
+      doc.setTextColor(30, 170, 95);
+    } else if (charging.status === 'check') {
+      doc.setTextColor(220, 145, 35);
+    } else {
+      doc.setTextColor(220, 70, 80);
+    }
+    doc.text(charging.label, 20, nextY + 16);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(50, 50, 50);
+    doc.text(`Voltage: ${metrics.bus_voltage_v.toFixed(2)} V`, 20, nextY + 24);
+    doc.text(`Current: ${metrics.current_a.toFixed(2)} A`, 72, nextY + 24);
+    doc.text(`Power: ${metrics.power_w.toFixed(2)} W`, 122, nextY + 24);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(80, 80, 80);
+    const chargingLines = doc.splitTextToSize(charging.message, 165);
+    doc.text(chargingLines, 20, nextY + 31);
+
+    nextY += 44;
+  }
+
   // Final Verdict
   let verdictTitle = '';
   let verdictDescription = '';
 
-  if (report.overallScore >= 90) {
+  if (report.chargingHealth?.status === 'problem') {
+    verdictTitle = 'CHARGING ISSUE - INSPECTION REQUIRED';
+    verdictDescription =
+      'A charging-path problem was detected by the Raspberry Pi power measurement. Inspect or repair the charging system before purchase.';
+    doc.setTextColor(255, 92, 108);
+  } else if (report.overallScore >= 90) {
     verdictTitle = 'RECOMMENDED TO BUY';
     verdictDescription =
       'The device shows strong overall diagnostic health with no major concerns detected.';
@@ -204,6 +260,7 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
       'The device has significant diagnostic concerns. Repair or professional inspection is recommended before purchase.';
     doc.setTextColor(255, 92, 108);
   }
+
   // Make sure the purchase verdict is clearly visible
   if (nextY > 215) {
     doc.addPage();
@@ -222,7 +279,9 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
 
   doc.setFontSize(13);
 
-  if (report.overallScore >= 90) {
+  if (report.chargingHealth?.status === 'problem') {
+    doc.setTextColor(220, 70, 80);
+  } else if (report.overallScore >= 90) {
     doc.setTextColor(30, 170, 95);
   } else if (report.overallScore >= 75) {
     doc.setTextColor(32, 140, 220);
@@ -242,6 +301,7 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
   doc.text(verdictLines, 20, nextY + 24);
 
   nextY += 42;
+
   // Warnings & Recommendations
   if (report.warnings.length > 0) {
     doc.setFontSize(9);
@@ -253,10 +313,16 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
     doc.setFontSize(8);
     doc.setTextColor(50, 50, 50);
     report.warnings.forEach(w => {
-      doc.text(`- ${w}`, 18, nextY);
-      nextY += 4.5;
+      const lines = doc.splitTextToSize(`- ${w}`, 170);
+      doc.text(lines, 18, nextY);
+      nextY += lines.length * 4.5;
     });
     nextY += 3;
+  }
+
+  if (nextY > 245) {
+    doc.addPage();
+    nextY = 20;
   }
 
   doc.setFontSize(9);
@@ -268,8 +334,9 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
   doc.setFontSize(8);
   doc.setTextColor(50, 50, 50);
   report.recommendations.forEach(r => {
-    doc.text(`- ${r}`, 18, nextY);
-    nextY += 4.5;
+    const lines = doc.splitTextToSize(`- ${r}`, 170);
+    doc.text(lines, 18, nextY);
+    nextY += lines.length * 4.5;
   });
 
   // Footer Disclaimer
@@ -322,12 +389,7 @@ export async function generateReportPdf(report: DiagnosticReport): Promise<void>
     145,
     284
   );
+
   // Save the PDF
   doc.save(`AuthentiX_Report_${report.id}.pdf`);
 }
-
-
-
-
-
-
