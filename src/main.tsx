@@ -3,8 +3,10 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { installLocationRuntime } from './services/locationRuntime';
+import { installPiAutoStatusRuntime } from './services/piAutoStatusRuntime';
 
 installLocationRuntime();
+installPiAutoStatusRuntime();
 
 // Camera preview compatibility bridge.
 // The diagnostic page mounts its <video> element only after getUserMedia()
