@@ -40,6 +40,26 @@ export interface DeviceInfo {
   isSimulated: boolean;
 }
 
+export interface PowerMetrics {
+  bus_voltage_v: number;
+  shunt_voltage_mv: number;
+  current_ma: number;
+  current_a: number;
+  power_mw: number;
+  power_w: number;
+}
+
+export type ChargingHealthStatus = 'good' | 'check' | 'problem';
+
+export interface ChargingHealthResult {
+  status: ChargingHealthStatus;
+  label: string;
+  message: string;
+  voltage: number;
+  current: number;
+  power: number;
+}
+
 export interface TestItemResult {
   id: string;
   title: string;
@@ -93,6 +113,8 @@ export interface DiagnosticReport {
   categoryScores: Record<DiagnosticCategory, CategoryScoreResult>;
   stats: DiagnosticStats;
   physicalInspection: PhysicalInspectionData;
+  powerMetrics?: PowerMetrics;
+  chargingHealth?: ChargingHealthResult;
   warnings: string[];
   recommendations: string[];
   inspectorNotes: string;
