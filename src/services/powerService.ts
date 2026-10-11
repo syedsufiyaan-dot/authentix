@@ -13,12 +13,25 @@ interface PowerResponse {
   error?: string;
 }
 
-const PI_API_URL =
-  (import.meta.env.VITE_PI_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://10.52.123.159:5000';
+function getPiApiUrl(): string {
+  const configured =
+    (import.meta.env.VITE_PI_API_URL as string | undefined)?.replace(/\/$/, '');
+
+  if (configured) return configured;
+
+  const params = new URLSearchParams(window.location.search);
+
+  // In automatic station mode the AuthentiX browser is running on the Pi,
+  // so localhost is the most reliable backend address even if DHCP changes.
+  if (params.get('auto') === '1') {
+    return 'http://127.0.0.1:5000';
+  }
+
+  return 'https://10.52.123.159:5000';
+}
 
 export async function getPowerMetrics(): Promise<PowerMetrics> {
-  const response = await fetch(`${PI_API_URL}/api/power`, {
+  const response = await fetch(`${getPiApiUrl()}/api/power`, {
     cache: 'no-store',
   });
 
