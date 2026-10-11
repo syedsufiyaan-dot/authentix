@@ -40,17 +40,11 @@ interface PiLiveResponse {
   error?: string;
 }
 
+const PI_STATION_SESSION_KEY = 'authentix_pi_station_mode';
+
 function getPiApiUrl(): string {
   const configured = (import.meta.env.VITE_PI_API_URL as string | undefined)?.replace(/\/$/, '');
   if (configured) return configured;
-
-  // In ?auto=1 mode AuthentiX is opened directly on the Raspberry Pi,
-  // so localhost points to the Pi backend itself.
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('auto') === '1') {
-    return 'http://127.0.0.1:5000';
-  }
-
   return 'http://127.0.0.1:5000';
 }
 
@@ -74,5 +68,29 @@ export async function getPiLiveDiagnostic(): Promise<PiLiveDiagnostic> {
 }
 
 export function isPiAutoMode(): boolean {
-  return new URLSearchParams(window.location.search).get('auto') === '1';
+  if (typeof window === 'undefined') return false;
+
+  const requested = new URLSearchParams(window.location.search).get('auto') === '1';
+  if (requested) {
+    try {
+      sessionStorage.setItem(PI_STATION_SESSION_KEY, '1');
+    } catch {
+      // Ignore storage restrictions; query mode still works for this page load.
+    }
+    return true;
+  }
+
+  try {
+    return sessionStorage.getItem(PI_STATION_SESSION_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function clearPiAutoMode(): void {
+  try {
+    sessionStorage.removeItem(PI_STATION_SESSION_KEY);
+  } catch {
+    // Ignore storage restrictions.
+  }
 }
