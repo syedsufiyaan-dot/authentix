@@ -38,13 +38,13 @@ export const DashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <Link
-          to="/app/diagnostic"
+        <a
+          href="/app/diagnostic"
           className="px-5 py-3 rounded-xl bg-accent-teal text-bg-darkest font-bold text-xs font-mono tracking-wider uppercase hover:bg-accent-teal/90 transition-all shadow-teal-glow flex items-center gap-2 self-start"
         >
           <ScanLine className="w-4 h-4" />
           <span>Start New Inspection</span>
-        </Link>
+        </a>
       </div>
 
       {/* Top KPI Cards */}
@@ -124,13 +124,13 @@ export const DashboardPage: React.FC = () => {
               </p>
             </div>
 
-            <Link
-              to="/app/diagnostic"
+            <a
+              href="/app/diagnostic"
               className="w-full py-3 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/30 text-accent-cyan font-bold text-xs font-mono uppercase tracking-wider transition-all flex items-center justify-center gap-2"
             >
               <span>Launch 16-Step Wizard</span>
               <ChevronRight className="w-4 h-4" />
-            </Link>
+            </a>
           </div>
 
           <div className="p-4 rounded-2xl bg-bg-darker border border-bg-border text-xs text-text-muted space-y-1">
@@ -214,5 +214,4 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
-
 
