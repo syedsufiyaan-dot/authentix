@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ShieldCheck, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { AuthentixLogo } from '../components/common/AuthentixLogo';
 import { OtpInput } from '../components/auth/OtpInput';
@@ -144,12 +144,10 @@ export const VerifyEmailPage: React.FC = () => {
                 </div>
               )}
 
-              {/* 6-box OTP input */}
               <div className="py-2">
                 <OtpInput value={otp} onChange={handleOtpChange} disabled={isVerifying} />
               </div>
 
-              {/* Expiry Countdown */}
               <div className="flex items-center justify-between text-xs font-mono text-text-muted">
                 <span>
                   {expirySeconds > 0 ? (
@@ -169,7 +167,6 @@ export const VerifyEmailPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Verify Action */}
               <button
                 type="button"
                 onClick={() => handleVerify()}
@@ -182,10 +179,6 @@ export const VerifyEmailPage: React.FC = () => {
                   'Verify Email'
                 )}
               </button>
-
-              <p className="text-[11px] text-text-dim font-mono">
-                Prototype hint: Dev testing master OTP is <code className="text-accent-teal">123456</code>
-              </p>
             </>
           )}
         </motion.div>
